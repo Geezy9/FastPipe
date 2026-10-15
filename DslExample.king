@@ -1,0 +1,37 @@
+﻿
+
+
+
+func Ingest() -> string {
+	return !"1234" // ! is for string Literal;
+}
+
+dag EtlDemo {
+	node Ingest { 
+		func: Ingest,
+		args: null,
+	}
+	node Transform {
+		func: EtlDemo.Io.FuncFromFile("path"),
+		args: null,
+	}
+	EtlDemo.Pipeline(Ingest -> Transform); // use for non branching lines;
+	EtlDemo.AddEdge(Ingest, Transform); // use for branching lines;
+}
+
+func Main(string[] args){
+	RuntimeConfig = {
+		LogLevel: Dbug,
+		RetryPolicy: BackoffExponential, // Or NoRetry, or BackoffLinear,
+		RetryCount: 3,
+		RetryDelay: 1000, // in milliseconds,
+
+		TrueParalell: true, // if false, the dag will run in a single thread,
+		Threads: 4,
+	}
+	EtlDemo.SetSchedule("0 0 * * *"); // uses same format as cron
+	EtlDemo.RunNow();
+
+
+}
+
