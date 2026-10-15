@@ -20,6 +20,22 @@ Console.CancelKeyPress += (_, eventArgs) =>
     }
 };
 
+if (args.Length > 0)
+{
+    var commandLine = string.Join(' ', args).Trim();
+    if (commandLine.Length == 0)
+    {
+        KingShell.ConsoleRenderer.WriteError("A command is required.");
+        Environment.ExitCode = 1;
+    }
+    else if (!await ExecuteCommandAsync(commandLine))
+    {
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
 KingShell.ConsoleRenderer.WriteBanner();
 
 while (!sessionCancellation.IsCancellationRequested)
@@ -48,6 +64,13 @@ while (!sessionCancellation.IsCancellationRequested)
     if (commandLine.Length == 0)
         continue;
 
+    await ExecuteCommandAsync(commandLine);
+}
+
+KingShell.ConsoleRenderer.WriteGoodbye();
+
+async Task<bool> ExecuteCommandAsync(string commandLine)
+{
     using var commandCancellation = new CancellationTokenSource();
     lock (cancellationLock)
         activeCommandCancellation = commandCancellation;
@@ -55,7 +78,14 @@ while (!sessionCancellation.IsCancellationRequested)
     try
     {
         var context = await KingShell.UserFacingConsole.PostJobAsync(commandLine, commandCancellation.Token);
-        KingShell.ConsoleRenderer.Render(context.Output);
+        try
+        {
+            KingShell.ConsoleRenderer.Render(context.Output);
+        }
+        finally
+        {
+            context.Release();
+        }
 
         if (session.ConsumeClearRequest())
         {
@@ -71,14 +101,18 @@ while (!sessionCancellation.IsCancellationRequested)
 
         if (session.ExitRequested)
             sessionCancellation.Cancel();
+
+        return true;
     }
     catch (OperationCanceledException) when (commandCancellation.IsCancellationRequested)
     {
         KingShell.ConsoleRenderer.WriteNotice("Command cancelled.");
+        return false;
     }
     catch (Exception exception)
     {
         KingShell.ConsoleRenderer.WriteError(exception.Message);
+        return false;
     }
     finally
     {
@@ -86,5 +120,3 @@ while (!sessionCancellation.IsCancellationRequested)
             activeCommandCancellation = null;
     }
 }
-
-KingShell.ConsoleRenderer.WriteGoodbye();

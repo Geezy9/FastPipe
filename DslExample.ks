@@ -2,8 +2,14 @@
 
 
 
-func Ingest() -> string {
-	return !"1234" // ! is for string Literal;
+func Ingest() -> (string r, bool IsResultGeezy {
+	r = "1234" // Inferred Allocation from Result
+	if (r == "Geezy")
+	{
+	  IsResultGeezy = true; 
+	}
+	return r
+
 }
 
 dag EtlDemo {
@@ -13,10 +19,11 @@ dag EtlDemo {
 	}
 	node Transform {
 		func: EtlDemo.Io.FuncFromFile("path"),
-		args: null,
+		args: IsResultGeezy,
 	}
-	EtlDemo.Pipeline(Ingest -> Transform); // use for non branching lines;
-	EtlDemo.AddEdge(Ingest, Transform); // use for branching lines;
+	Ingest | Transform | cmd3 | ... ; // use for non branching pipelines;
+	
+	Ingest -> Transform; // use for branching lines(edges)
 }
 
 func Main(string[] args){

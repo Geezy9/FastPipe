@@ -3,21 +3,66 @@ using KingShell.Models;
 
 namespace KingShell.Extensions;
 
-internal sealed record FileSystemEntry(string Name, string Path, bool IsDirectory, long? Length, DateTimeOffset LastWriteTime);
+internal sealed record FileSystemEntry(string Name, string Path, bool IsDirectory, long? Length, DateTimeOffset LastWriteTime) : IStructuredValue
+{
+    public bool TryGetMemberValue(string memberName, out object? value)
+    {
+        switch (memberName)
+        {
+            case "Name":
+                value = Name;
+                return true;
+            case "Path":
+                value = Path;
+                return true;
+            case "IsDirectory":
+                value = IsDirectory;
+                return true;
+            case "Length":
+                value = Length;
+                return true;
+            case "LastWriteTime":
+                value = LastWriteTime;
+                return true;
+            default:
+                value = null;
+                return false;
+        }
+    }
+
+    public IEnumerable<KeyValuePair<string, object?>> EnumerateMembers()
+    {
+        yield return new KeyValuePair<string, object?>("Name", Name);
+        yield return new KeyValuePair<string, object?>("Path", Path);
+        yield return new KeyValuePair<string, object?>("IsDirectory", IsDirectory);
+        yield return new KeyValuePair<string, object?>("Length", Length);
+        yield return new KeyValuePair<string, object?>("LastWriteTime", LastWriteTime);
+    }
+}
 
 internal sealed class ListDirectoryCommand : IShellCmd
 {
     public string Name => "ls";
     public IReadOnlyList<string> Aliases => ["dir"];
-    public string Description => "Lists directory entries.";
-    public string Usage => "ls [path]";
+    public string Description => "Lists directory entries; -d lists only directories.";
+    public string Usage => "ls [-d] [path]";
 
     public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
     {
-        if (arguments.Length > 1)
-            throw new ArgumentException("Usage: ls [path]");
+        var directoriesOnly = false;
+        BaseObj? pathArgument = null;
+        foreach (var argument in arguments)
+        {
+            var value = CommandArguments.GetText(argument, "path or option");
+            if (value.Equals("-d", StringComparison.OrdinalIgnoreCase) || value.Equals("--directory", StringComparison.OrdinalIgnoreCase))
+                directoriesOnly = true;
+            else if (pathArgument is null)
+                pathArgument = argument;
+            else
+                throw new ArgumentException("Usage: ls [-d] [path]");
+        }
 
-        var path = arguments.Length == 0 ? context.Session.WorkingDirectory : CommandArguments.ResolvePath(context, arguments[0], "path");
+        var path = pathArgument is null ? context.Session.WorkingDirectory : CommandArguments.ResolvePath(context, pathArgument, "path");
         if (!Directory.Exists(path))
             throw new DirectoryNotFoundException($"Directory not found: {path}");
 
@@ -25,6 +70,9 @@ internal sealed class ListDirectoryCommand : IShellCmd
         {
             cancellationToken.ThrowIfCancellationRequested();
             var isDirectory = entry is DirectoryInfo;
+            if (directoriesOnly && !isDirectory)
+                continue;
+
             context.Write(new FileSystemEntry(entry.Name, entry.FullName, isDirectory, isDirectory ? null : ((FileInfo)entry).Length, entry.LastWriteTimeUtc));
         }
 
@@ -193,6 +241,34 @@ internal sealed class RemoveCommand : IShellCmd
                 Directory.Delete(path, recursive: true);
             }
             else if (!force) throw new FileNotFoundException($"Path not found: {path}", path);
+
+            context.Write(path);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class TouchCommand : IShellCmd
+{
+    public string Name => "touch";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Creates empty files or updates their last write time.";
+    public string Usage => "touch <path...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length == 0)
+            throw new ArgumentException("Usage: touch <path...>");
+
+        foreach (var argument in arguments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var path = CommandArguments.ResolvePath(context, argument, "path");
+            if (File.Exists(path))
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow);
+            else
+                File.Create(path).Dispose();
 
             context.Write(path);
         }

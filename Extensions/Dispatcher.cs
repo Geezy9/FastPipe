@@ -35,21 +35,39 @@ internal sealed class Dispatcher
         .OrderBy(command => command.Name, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    internal ValueTask DispatchAsync(
+    internal async ValueTask DispatchAsync(
         string commandName,
         CommandContext context,
-        BaseObj[] arguments,
+        IReadOnlyList<BaseObj> explicitArguments,
+        IReadOnlyList<BaseObj> pipedInput,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
 
-        if (!_shellCommands.TryGetValue(commandName, out IShellCmd? registeredCommand))
+        if (_shellCommands.TryGetValue(commandName, out IShellCmd? registeredCommand))
         {
-            throw new InvalidOperationException(
-                $"Unknown command '{commandName}'.");
+            if (registeredCommand is IExternalShellCmd externalShellCommand)
+            {
+                await externalShellCommand.ExecuteAsync(context, explicitArguments, pipedInput, cancellationToken);
+                return;
+            }
+
+            var arguments = new BaseObj[explicitArguments.Count + pipedInput.Count];
+
+            for (var index = 0; index < explicitArguments.Count; index++)
+                arguments[index] = explicitArguments[index];
+
+            for (var index = 0; index < pipedInput.Count; index++)
+                arguments[explicitArguments.Count + index] = pipedInput[index];
+
+            await registeredCommand.ExecuteAsync(context, arguments, cancellationToken);
+            return;
         }
 
-        return registeredCommand.ExecuteAsync(context, arguments, cancellationToken);
+        if (await ExternalProcessCommandRunner.TryExecuteAsync(commandName, context, explicitArguments, pipedInput, cancellationToken))
+            return;
+
+        throw new InvalidOperationException($"Unknown command '{commandName}'.");
     }
 
     private void RegisterName(string name, IShellCmd command)

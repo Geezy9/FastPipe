@@ -25,6 +25,7 @@ namespace KingShell
 
             _session = session;
             BuiltInCommands.RegisterAll(Dispatcher);
+            PluginLoader.RegisterExternalCommands(Dispatcher);
         }
 
         internal static async ValueTask<CommandContext> PostJobAsync(
@@ -35,16 +36,60 @@ namespace KingShell
             if (tokens.Count == 0)
                 throw new ArgumentException("A command is required.", nameof(commandLine));
 
-            var arguments = new BaseObj[tokens.Count - 1];
+            var session = _session ?? throw new InvalidOperationException("The shell command library has not been initialized.");
+            var segments = SplitPipeline(tokens);
 
-            for (var index = 1; index < tokens.Count; index++)
+            IReadOnlyList<BaseObj> pipedInput = [];
+            CommandContext context = new CommandContext(session);
+            var rented = new HashSet<BaseObj>();
+
+            foreach (var segment in segments)
             {
-                arguments[index - 1] = ParseArgument(tokens[index]);
+                var explicitArguments = new BaseObj[segment.Count - 1];
+
+                for (var index = 1; index < segment.Count; index++)
+                {
+                    explicitArguments[index - 1] = ParseArgument(segment[index]);
+                    rented.Add(explicitArguments[index - 1]);
+                }
+
+                context = new CommandContext(session);
+                await Dispatcher.DispatchAsync(segment[0], context, explicitArguments, pipedInput, cancellationToken);
+                pipedInput = context.Output;
+
+                foreach (var item in pipedInput)
+                    rented.Add(item);
             }
 
-            var context = new CommandContext(_session ?? throw new InvalidOperationException("The shell command library has not been initialized."));
-            await Dispatcher.DispatchAsync(tokens[0], context, arguments, cancellationToken);
+            context.TrackRented(rented);
             return context;
+        }
+
+        private static List<IReadOnlyList<string>> SplitPipeline(IReadOnlyList<string> tokens)
+        {
+            var segments = new List<IReadOnlyList<string>>();
+            var current = new List<string>();
+
+            foreach (var token in tokens)
+            {
+                if (token == "|")
+                {
+                    if (current.Count == 0)
+                        throw new FormatException("A pipeline segment is missing its command.");
+
+                    segments.Add(current);
+                    current = [];
+                    continue;
+                }
+
+                current.Add(token);
+            }
+
+            if (current.Count == 0)
+                throw new FormatException("A pipeline segment is missing its command.");
+
+            segments.Add(current);
+            return segments;
         }
 
         internal static BaseObj[] ParseArgs(string arguments)
@@ -111,6 +156,18 @@ namespace KingShell
                         token.Clear();
                     }
 
+                    continue;
+                }
+
+                if (quote == '\0' && character == '|')
+                {
+                    if (token.Length > 0)
+                    {
+                        tokens.Add(token.ToString());
+                        token.Clear();
+                    }
+
+                    tokens.Add("|");
                     continue;
                 }
 

@@ -6,7 +6,7 @@ using KingShell.Models;
 namespace KingShell.Interfaces;
 
 
-internal interface IShellCmd
+public interface IShellCmd
 {
     string Name { get; }
 

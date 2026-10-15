@@ -2,19 +2,19 @@ using KingShell.Models;
 
 namespace KingShell.Extensions;
 
-internal sealed class ShellSession
+public sealed class ShellSession
 {
-    internal string WorkingDirectory { get; private set; } = Environment.CurrentDirectory;
+    public string WorkingDirectory { get; private set; } = Environment.CurrentDirectory;
 
-    internal bool ExitRequested { get; private set; }
+    public bool ExitRequested { get; private set; }
 
-    internal bool ClearRequested { get; private set; }
+    public bool ClearRequested { get; private set; }
 
-    internal void SetWorkingDirectory(string path) => WorkingDirectory = path;
+    public void SetWorkingDirectory(string path) => WorkingDirectory = path;
 
-    internal void RequestExit() => ExitRequested = true;
+    public void RequestExit() => ExitRequested = true;
 
-    internal void RequestClear() => ClearRequested = true;
+    public void RequestClear() => ClearRequested = true;
 
     internal bool ConsumeClearRequest()
     {
@@ -24,17 +24,41 @@ internal sealed class ShellSession
     }
 }
 
-internal sealed class CommandContext
+public sealed class CommandContext
 {
     private readonly List<BaseObj> _output = [];
+    private readonly HashSet<BaseObj> _rented = [];
 
-    internal CommandContext(ShellSession session) => Session = session;
+    public CommandContext(ShellSession session) => Session = session;
 
-    internal ShellSession Session { get; }
+    public ShellSession Session { get; }
 
-    internal IReadOnlyList<BaseObj> Output => _output;
+    public IReadOnlyList<BaseObj> Output => _output;
 
-    internal void Write(BaseObj value) => _output.Add(value);
+    public void Write(BaseObj value) => _output.Add(value);
 
-    internal void Write<T>(T value) => _output.Add(new BaseObj<T>(value));
+    public void Write<T>(T value) => _output.Add(Runtime.Rent(value));
+
+    internal void TrackRented(BaseObj value) => _rented.Add(value);
+
+    internal void TrackRented(IEnumerable<BaseObj> values)
+    {
+        foreach (var value in values)
+            _rented.Add(value);
+    }
+
+    // Returns every object produced or consumed by this pipeline to the pool.
+    // The set deduplicates instances that appear as both argument and output.
+    internal void Release()
+    {
+        foreach (var item in _output)
+            _rented.Add(item);
+
+        _output.Clear();
+
+        foreach (var item in _rented)
+            Runtime.Return(item);
+
+        _rented.Clear();
+    }
 }

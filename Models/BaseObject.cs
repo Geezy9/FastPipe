@@ -6,32 +6,39 @@ using KingShell.utils;
 using KingShell.Interfaces;
 
 namespace KingShell.Models;
-internal class BaseObj : IPoolable
+public class BaseObj : IPoolable
 {
 
-    internal BaseObj()
+    public BaseObj()
     {
     }
 
-    public void Reset()
+    public virtual void Reset()
     {
     }
 
-    internal virtual object? UntypedValue => null;
+    public virtual object? UntypedValue => null;
+
+    // Non-generic hook so callers can recycle objects without knowing T.
+    internal virtual void ReturnToPool()
+    {
+    }
 }
 
-internal class BaseObj<T> : BaseObj, IPoolable
+public class BaseObj<T> : BaseObj, IPoolable
 {
-    internal T Value;
+    public T Value;
     public BaseObj(T value)
     {
         Value = value;
     }
-    internal override object? UntypedValue => Value;
-    public void Reset()
+    public override object? UntypedValue => Value;
+    public override void Reset()
     {
         Value = default!;
     }
+
+    internal override void ReturnToPool() => Runtime.ReturnToFree(this);
 }
 
 internal class Result<T> : BaseObj

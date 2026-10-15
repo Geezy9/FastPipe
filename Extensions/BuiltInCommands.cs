@@ -1,5 +1,9 @@
+using KingShell.Extensions.Collections;
+using KingShell.Extensions.Serializers;
 using KingShell.Interfaces;
 using KingShell.Models;
+using System.ComponentModel;
+using System.Diagnostics;
 
 namespace KingShell.Extensions;
 
@@ -8,6 +12,7 @@ internal static class BuiltInCommands
     internal static void RegisterAll(Dispatcher dispatcher)
     {
         dispatcher.Register(new HelpCommand(dispatcher));
+        // dispatcher.Register(new TimeCommand(dispatcher));
         dispatcher.Register(new EchoCommand());
         dispatcher.Register(new ClearCommand());
         dispatcher.Register(new ExitCommand());
@@ -22,6 +27,33 @@ internal static class BuiltInCommands
         dispatcher.Register(new MoveCommand());
         dispatcher.Register(new RemoveCommand());
         dispatcher.Register(new ExistsCommand());
+        dispatcher.Register(new TouchCommand());
+        dispatcher.Register(new AddCommand());
+        dispatcher.Register(new SubtractCommand());
+        dispatcher.Register(new MultiplyCommand());
+        dispatcher.Register(new DivideCommand());
+        dispatcher.Register(new ModuloCommand());
+        dispatcher.Register(new EqualsCommand());
+        dispatcher.Register(new NotEqualsCommand());
+        dispatcher.Register(new GreaterThanCommand());
+        dispatcher.Register(new LessThanCommand());
+        dispatcher.Register(new GreaterOrEqualCommand());
+        dispatcher.Register(new LessOrEqualCommand());
+        dispatcher.Register(new NotCommand());
+        dispatcher.Register(new AndCommand());
+        dispatcher.Register(new OrCommand());
+        dispatcher.Register(new ToIntCommand());
+        dispatcher.Register(new ToDoubleCommand());
+        dispatcher.Register(new ToBoolCommand());
+        dispatcher.Register(new ToStringCommand());
+        dispatcher.Register(new PlainCommand());
+        dispatcher.Register(new TypeCommand());
+        dispatcher.Register(new LengthCommand());
+        dispatcher.Register(new UpperCommand());
+        dispatcher.Register(new LowerCommand());
+        dispatcher.Register(new ConcatCommand());
+        CollectionCommands.RegisterAll(dispatcher);
+        SerializerCommands.RegisterAll(dispatcher);
     }
 }
 
@@ -57,6 +89,7 @@ internal sealed class HelpCommand(Dispatcher dispatcher) : IShellCmd
             var aliases = command.Aliases.Count == 0 ? string.Empty : $" ({string.Join(", ", command.Aliases)})";
             context.Write($"{command.Name}{aliases} - {command.Description}");
         }
+
 
         return ValueTask.CompletedTask;
     }
@@ -96,6 +129,8 @@ internal sealed class ClearCommand : IShellCmd
         return ValueTask.CompletedTask;
     }
 }
+
+
 
 internal sealed class ExitCommand : IShellCmd
 {
@@ -152,17 +187,37 @@ internal sealed class ChangeDirectoryCommand : IShellCmd
     }
 }
 
-internal static class CommandArguments
+
+public static class CommandArguments
 {
-    internal static void RequireNone(BaseObj[] arguments, string commandName)
+    public static void RequireNone(BaseObj[] arguments, string commandName)
     {
         if (arguments.Length != 0)
             throw new ArgumentException($"Usage: {commandName}");
     }
 
-    internal static string GetText(BaseObj argument, string argumentName) =>
+    public static string GetText(BaseObj argument, string argumentName) =>
         argument.UntypedValue as string ?? throw new ArgumentException($"{argumentName} must be a string.");
 
-    internal static string ResolvePath(CommandContext context, BaseObj argument, string argumentName) =>
+    public static string ResolvePath(CommandContext context, BaseObj argument, string argumentName) =>
         Path.GetFullPath(GetText(argument, argumentName), context.Session.WorkingDirectory);
+
+    public static (double Value, bool IsIntegral) GetNumber(BaseObj argument, string argumentName) =>
+        argument.UntypedValue switch
+        {
+            int value => (value, true),
+            long value => (value, true),
+            double value => (value, false),
+            string text when long.TryParse(text, out var value) => (value, true),
+            string text when double.TryParse(text, out var value) => (value, false),
+            _ => throw new ArgumentException($"{argumentName} must be a number."),
+        };
+
+    public static bool GetBool(BaseObj argument, string argumentName) =>
+        argument.UntypedValue switch
+        {
+            bool value => value,
+            string text when bool.TryParse(text, out var value) => value,
+            _ => throw new ArgumentException($"{argumentName} must be a boolean."),
+        };
 }
