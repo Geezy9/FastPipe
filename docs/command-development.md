@@ -2,7 +2,7 @@
 
 This guide describes the internal contract for built-in commands.
 
-> KingShell extensions are process-based plugins. This API is for contributors working inside the shell codebase.
+> FastPipe extensions are process-based plugins. This API is for contributors working inside the shell codebase.
 
 ## `IShellCmd`
 

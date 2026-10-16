@@ -1,10 +1,10 @@
 # Plugin System
 
-KingShell uses a process-based plugin model.
+FastPipe uses a process-based plugin model.
 
 ## Why Process-Based
 
-KingShell is designed for Native AOT. Instead of runtime assembly loading, plugins execute as child processes.
+FastPipe is designed for Native AOT. Instead of runtime assembly loading, plugins execute as child processes.
 
 Benefits:
 

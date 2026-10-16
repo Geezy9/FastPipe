@@ -1,7 +1,7 @@
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal sealed record FileSystemEntry(string Name, string Path, bool IsDirectory, long? Length, DateTimeOffset LastWriteTime) : IStructuredValue
 {

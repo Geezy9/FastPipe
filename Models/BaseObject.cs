@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
-using KingShell.utils;
-using KingShell.Interfaces;
+using FastPipe.utils;
+using FastPipe.Interfaces;
 
-namespace KingShell.Models;
+namespace FastPipe.Models;
 public class BaseObj : IPoolable
 {
 

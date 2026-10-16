@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KingShell.Interfaces;
+namespace FastPipe.Interfaces;
 
 internal interface IPoolable
 {

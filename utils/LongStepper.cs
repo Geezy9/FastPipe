@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KingShell.utils;
+namespace FastPipe.utils;
 
 internal static class LongStepper
 {

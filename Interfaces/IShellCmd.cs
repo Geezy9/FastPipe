@@ -1,9 +1,9 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
-using KingShell.Extensions;
-using KingShell.Models;
+using FastPipe.Extensions;
+using FastPipe.Models;
 
-namespace KingShell.Interfaces;
+namespace FastPipe.Interfaces;
 
 
 public interface IShellCmd

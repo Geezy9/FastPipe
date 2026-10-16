@@ -1,4 +1,4 @@
-﻿namespace KingShell.Models;
+namespace FastPipe.Models;
 
 internal class Source
 {

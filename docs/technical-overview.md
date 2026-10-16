@@ -1,10 +1,10 @@
 # Technical Overview
 
-This document describes KingShell internals and runtime behavior.
+This document describes FastPipe internals and runtime behavior.
 
 ## Execution Model
 
-KingShell supports two modes:
+FastPipe supports two modes:
 
 - **Interactive REPL**: starts a prompt, reads command lines, executes, renders output.
 - **One-shot mode**: executes a single pipeline from CLI args and exits.

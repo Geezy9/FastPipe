@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Globalization;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal interface IStructuredValue
 {

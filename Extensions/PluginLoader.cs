@@ -1,8 +1,8 @@
 using System.Text.Json;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal static class PluginLoader
 {

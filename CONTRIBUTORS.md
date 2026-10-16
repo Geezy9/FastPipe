@@ -1,6 +1,6 @@
 # Contributors
 
-Thanks to everyone who has contributed to KingShell.
+Thanks to everyone who has contributed to FastPipe.
 
 - [@Geezy9](https://github.com/Geezy9)
 

@@ -1,4 +1,4 @@
-# Contributing to KingShell
+# Contributing to FastPipe
 
 Thanks for your interest in contributing.
 

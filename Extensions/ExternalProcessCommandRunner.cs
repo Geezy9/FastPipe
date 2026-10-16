@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using KingShell.Models;
+using FastPipe.Models;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal static class ExternalProcessCommandRunner
 {

@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Text;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 using Spectre.Console;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal abstract class ArithmeticCommandBase : IShellCmd
 {

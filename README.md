@@ -1,11 +1,11 @@
-# KingShell
+# FastPipe
 
 Typed, Native AOT shell for .NET that pipes objects instead of plain text.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-KingShell is an interactive shell built on .NET 10 with a typed pipeline, low-allocation runtime, and plugin support.
+FastPipe is an interactive shell built on .NET 10 with a typed pipeline, low-allocation runtime, and plugin support.
 
 ## Highlights
 
@@ -20,8 +20,8 @@ KingShell is an interactive shell built on .NET 10 with a typed pipeline, low-al
 Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download)
 
 ```pwsh
-git clone https://github.com/Geezy9/KingShell
-cd KingShell
+git clone https://github.com/Geezy9/FastPipe
+cd FastPipe
 dotnet run
 ```
 
@@ -43,10 +43,17 @@ dotnet publish -c Release -r win-x64
 - File system: `pwd`, `cd`, `ls`, `mkdir`, `copy`, `move`, `remove`, `touch`, ...
 - Arithmetic/comparison: `add`, `sub`, `mul`, `div`, `eq`, `gt`, ...
 - Logic: `and`, `or`, `not`
-- Data: `where`, `select`, `sort`, `take`, `group-by`
-- Serialization: `json`, `yaml`, `csv`
+- Data: `where`, `select`, `map`, `sort`, `take`, `group-by`, `uniq`, `split`, `flatten`, `contains`, `replace`, `min`, `max`, `sum`, `count`, `get-properties` (`props`)
+- Serialization: `sjson`, `syml`, `scsv` (aliases like `to-json`, `to-yaml`, `to-csv`)
+- Deserialization: `djson`, `dyml`, `dcsv` (aliases like `from-json`/`as-json`, `from-yml`/`as-yml`, `from-csv`/`as-csv`)
 
 Use `help` in the shell for the canonical command list and usage.
+
+Example round-trip:
+
+```pwsh
+echo '{"name":"alpha","count":2}' | djson | sjson
+```
 
 ## Documentation
 
@@ -74,7 +81,7 @@ Good first contribution ideas:
 
 ## Contributors
 
-Thanks to everyone building KingShell.
+Thanks to everyone building FastPipe.
 
 - [@Geezy9](https://github.com/Geezy9)
 

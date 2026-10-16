@@ -1,12 +1,13 @@
-using KingShell.Extensions;
-using KingShell.Extensions.Collections;
-using KingShell.Extensions.Serializers;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Extensions;
+using FastPipe.Extensions.Collections;
+using FastPipe.Extensions.Deserializers;
+using FastPipe.Extensions.Serializers;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 using System.Text.Json;
 using Xunit;
 
-namespace KingShell.Tests;
+namespace FastPipe.Tests;
 
 public sealed class CommandLibraryTests
 {
@@ -304,6 +305,138 @@ public sealed class CommandLibraryTests
     }
 
     [Fact]
+    public async Task UniqReturnsDistinctValuesPreservingOrder()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new UniqCommand().ExecuteAsync(
+            context,
+            [new BaseObj<int>(2), new BaseObj<int>(1), new BaseObj<int>(2), new BaseObj<int>(3), new BaseObj<int>(1)],
+            CancellationToken.None);
+
+        Assert.Equal([2, 1, 3], context.Output.Select(output => output.UntypedValue).Cast<int>().ToArray());
+    }
+
+    [Fact]
+    public async Task SplitProducesAllPartsForEachInput()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new SplitCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>(","), new BaseObj<string>("a,b"), new BaseObj<string>("c,d")],
+            CancellationToken.None);
+
+        Assert.Equal(["a", "b", "c", "d"], context.Output.Select(output => output.UntypedValue).Cast<string>().ToArray());
+    }
+
+    [Fact]
+    public async Task FlattenExpandsSequenceValues()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new FlattenCommand().ExecuteAsync(
+            context,
+            [new BaseObj<int[]>([1, 2]), new BaseObj<int>(3)],
+            CancellationToken.None);
+
+        Assert.Equal([1, 2, 3], context.Output.Select(output => output.UntypedValue).Cast<int>().ToArray());
+    }
+
+    [Fact]
+    public async Task ContainsReturnsBooleanForMembership()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new ContainsCommand().ExecuteAsync(
+            context,
+            [new BaseObj<int>(2), new BaseObj<int>(1), new BaseObj<int>(2), new BaseObj<int>(3)],
+            CancellationToken.None);
+
+        Assert.True(Assert.IsType<bool>(Assert.Single(context.Output).UntypedValue));
+    }
+
+    [Fact]
+    public async Task ReplaceUpdatesAllStringInputs()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new ReplaceCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>("foo"), new BaseObj<string>("bar"), new BaseObj<string>("foo-foo")],
+            CancellationToken.None);
+
+        Assert.Equal("bar-bar", Assert.Single(context.Output).UntypedValue);
+    }
+
+    [Fact]
+    public async Task MapProjectsRequestedPublicMember()
+    {
+        var first = new FileSystemEntry("alpha.txt", "C:/alpha.txt", false, 1, DateTimeOffset.UtcNow);
+        var second = new FileSystemEntry("beta.txt", "C:/beta.txt", false, 2, DateTimeOffset.UtcNow);
+        var context = new CommandContext(new ShellSession());
+
+        await new MapCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>("Name"), new BaseObj<FileSystemEntry>(first), new BaseObj<FileSystemEntry>(second)],
+            CancellationToken.None);
+
+        Assert.Equal(["alpha.txt", "beta.txt"], context.Output.Select(output => output.UntypedValue).Cast<string>().ToArray());
+    }
+
+    [Fact]
+    public async Task AggregateCommandsComputeExpectedOutputs()
+    {
+        var minContext = new CommandContext(new ShellSession());
+        await new MinCommand().ExecuteAsync(minContext, [new BaseObj<int>(5), new BaseObj<int>(1), new BaseObj<int>(9)], CancellationToken.None);
+        Assert.Equal(1, Assert.Single(minContext.Output).UntypedValue);
+
+        var maxContext = new CommandContext(new ShellSession());
+        await new MaxCommand().ExecuteAsync(maxContext, [new BaseObj<int>(5), new BaseObj<int>(1), new BaseObj<int>(9)], CancellationToken.None);
+        Assert.Equal(9, Assert.Single(maxContext.Output).UntypedValue);
+
+        var sumContext = new CommandContext(new ShellSession());
+        await new SumCommand().ExecuteAsync(sumContext, [new BaseObj<int>(5), new BaseObj<int>(1), new BaseObj<int>(9)], CancellationToken.None);
+        Assert.Equal(15m, Assert.Single(sumContext.Output).UntypedValue);
+
+        var countContext = new CommandContext(new ShellSession());
+        await new CountCommand().ExecuteAsync(countContext, [new BaseObj<int>(5), new BaseObj<int>(1), new BaseObj<int>(9)], CancellationToken.None);
+        Assert.Equal(3L, Assert.Single(countContext.Output).UntypedValue);
+    }
+
+    [Fact]
+    public async Task GetPropertiesSupportsKeysValuesAndPairsModes()
+    {
+        var entry = new FileSystemEntry("alpha.txt", "C:/alpha.txt", false, 1, DateTimeOffset.UtcNow);
+
+        var keysContext = new CommandContext(new ShellSession());
+        await new GetPropertiesCommand().ExecuteAsync(
+            keysContext,
+            [new BaseObj<string>("keys"), new BaseObj<FileSystemEntry>(entry)],
+            CancellationToken.None);
+        Assert.Contains("Name", keysContext.Output.Select(output => output.UntypedValue).Cast<string>());
+
+        var valuesContext = new CommandContext(new ShellSession());
+        await new GetPropertiesCommand().ExecuteAsync(
+            valuesContext,
+            [new BaseObj<string>("values"), new BaseObj<FileSystemEntry>(entry)],
+            CancellationToken.None);
+        Assert.Contains("alpha.txt", valuesContext.Output.Select(output => output.UntypedValue).Cast<string>());
+
+        var pairsContext = new CommandContext(new ShellSession());
+        await new GetPropertiesCommand().ExecuteAsync(
+            pairsContext,
+            [new BaseObj<string>("pairs"), new BaseObj<FileSystemEntry>(entry)],
+            CancellationToken.None);
+        var pair = pairsContext.Output
+            .Select(output => output.UntypedValue)
+            .OfType<PropertyPair>()
+            .First(property => property.Key == "Name");
+        Assert.Equal("Name", pair.Key);
+        Assert.Equal("alpha.txt", pair.Value);
+    }
+
+    [Fact]
     public async Task JsonSerializesMultipleValuesAsArray()
     {
         var context = new CommandContext(new ShellSession());
@@ -354,5 +487,74 @@ public sealed class CommandLibraryTests
         Assert.Contains("Path", csv, StringComparison.Ordinal);
         Assert.Contains("alpha.txt", csv, StringComparison.Ordinal);
         Assert.Contains("beta.txt", csv, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DJsonDeserializesObjectPayload()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new DJsonCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>("{\"name\":\"alpha\",\"count\":2}")],
+            CancellationToken.None);
+
+        var value = Assert.IsType<Dictionary<string, object?>>(Assert.Single(context.Output).UntypedValue);
+        Assert.Equal("alpha", value["name"]);
+        Assert.Equal(2, value["count"]);
+    }
+
+    [Fact]
+    public async Task DYmlDeserializesSimpleMapping()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new DYmlCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>("Name: notes.txt\nLength: 5")],
+            CancellationToken.None);
+
+        var value = Assert.IsType<Dictionary<string, object?>>(Assert.Single(context.Output).UntypedValue);
+        Assert.Equal("notes.txt", value["Name"]);
+        Assert.Equal(5, value["Length"]);
+    }
+
+    [Fact]
+    public async Task DCsvDeserializesRowsIntoObjects()
+    {
+        var context = new CommandContext(new ShellSession());
+
+        await new DCsvCommand().ExecuteAsync(
+            context,
+            [new BaseObj<string>("Name,Length\nalpha.txt,1\nbeta.txt,2")],
+            CancellationToken.None);
+
+        var rows = context.Output
+            .Select(output => Assert.IsType<Dictionary<string, object?>>(output.UntypedValue))
+            .ToArray();
+
+        Assert.Equal(2, rows.Length);
+        Assert.Equal("alpha.txt", rows[0]["Name"]);
+        Assert.Equal(1, rows[0]["Length"]);
+        Assert.Equal("beta.txt", rows[1]["Name"]);
+        Assert.Equal(2, rows[1]["Length"]);
+    }
+
+    [Fact]
+    public async Task DispatcherRoutesAsJsonAliasToDeserializerCommand()
+    {
+        var dispatcher = new Dispatcher();
+        BuiltInCommands.RegisterAll(dispatcher);
+        var context = new CommandContext(new ShellSession());
+
+        await dispatcher.DispatchAsync(
+            "as-json",
+            context,
+            [],
+            [new BaseObj<string>("{\"value\":42}")],
+            CancellationToken.None);
+
+        var value = Assert.IsType<Dictionary<string, object?>>(Assert.Single(context.Output).UntypedValue);
+        Assert.Equal(42, value["value"]);
     }
 }

@@ -17,4 +17,4 @@ Maintainers will acknowledge reports, validate impact, and coordinate a fix and 
 
 ## Scope
 
-This policy covers the KingShell codebase and first-party maintained release artifacts.
+This policy covers the FastPipe codebase and first-party maintained release artifacts.

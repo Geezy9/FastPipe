@@ -1,12 +1,12 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using KingShell.Extensions;
-using KingShell.Extensions.Collections;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Extensions;
+using FastPipe.Extensions.Collections;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 
-namespace KingShell.Extensions.Serializers;
+namespace FastPipe.Extensions.Serializers;
 
 internal static class SerializerCommands
 {
@@ -20,10 +20,10 @@ internal static class SerializerCommands
 
 internal sealed class JsonCommand : IShellCmd
 {
-    public string Name => "json";
-    public IReadOnlyList<string> Aliases => [];
+    public string Name => "sjson";
+    public IReadOnlyList<string> Aliases => ["to-json"];
     public string Description => "Serializes values to JSON.";
-    public string Usage => "json <value...>";
+    public string Usage => "sjson <value...>";
 
     public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
     {
@@ -56,10 +56,10 @@ internal sealed class JsonCommand : IShellCmd
 
 internal sealed class YmlCommand : IShellCmd
 {
-    public string Name => "yml";
-    public IReadOnlyList<string> Aliases => ["yaml"];
+    public string Name => "syml";
+    public IReadOnlyList<string> Aliases => ["to-yaml", "to-yml", "yaml"];
     public string Description => "Serializes values to YAML.";
-    public string Usage => "yml <value...>";
+    public string Usage => "syml <value...>";
 
     public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
     {
@@ -76,10 +76,10 @@ internal sealed class YmlCommand : IShellCmd
 
 internal sealed class CsvCommand : IShellCmd
 {
-    public string Name => "csv";
-    public IReadOnlyList<string> Aliases => [];
+    public string Name => "scsv";
+    public IReadOnlyList<string> Aliases => ["to-csv"];
     public string Description => "Serializes values to CSV.";
-    public string Usage => "csv <value...>";
+    public string Usage => "scsv <value...>";
 
     public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
     {

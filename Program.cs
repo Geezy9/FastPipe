@@ -1,6 +1,6 @@
-﻿using var sessionCancellation = new CancellationTokenSource();
-var session = new KingShell.Extensions.ShellSession();
-KingShell.UserFacingConsole.Initialize(session);
+using var sessionCancellation = new CancellationTokenSource();
+var session = new FastPipe.Extensions.ShellSession();
+FastPipe.UserFacingConsole.Initialize(session);
 var cancellationLock = new object();
 CancellationTokenSource? activeCommandCancellation = null;
 
@@ -25,7 +25,7 @@ if (args.Length > 0)
     var commandLine = string.Join(' ', args).Trim();
     if (commandLine.Length == 0)
     {
-        KingShell.ConsoleRenderer.WriteError("A command is required.");
+        FastPipe.ConsoleRenderer.WriteError("A command is required.");
         Environment.ExitCode = 1;
     }
     else if (!await ExecuteCommandAsync(commandLine))
@@ -36,11 +36,11 @@ if (args.Length > 0)
     return;
 }
 
-KingShell.ConsoleRenderer.WriteBanner();
+FastPipe.ConsoleRenderer.WriteBanner();
 
 while (!sessionCancellation.IsCancellationRequested)
 {
-    KingShell.ConsoleRenderer.WritePrompt(session.WorkingDirectory);
+    FastPipe.ConsoleRenderer.WritePrompt(session.WorkingDirectory);
 
     string? input;
     try
@@ -53,7 +53,7 @@ while (!sessionCancellation.IsCancellationRequested)
     }
     catch (IOException exception)
     {
-        KingShell.ConsoleRenderer.WriteError($"Unable to read input: {exception.Message}");
+        FastPipe.ConsoleRenderer.WriteError($"Unable to read input: {exception.Message}");
         break;
     }
 
@@ -67,7 +67,7 @@ while (!sessionCancellation.IsCancellationRequested)
     await ExecuteCommandAsync(commandLine);
 }
 
-KingShell.ConsoleRenderer.WriteGoodbye();
+FastPipe.ConsoleRenderer.WriteGoodbye();
 
 async Task<bool> ExecuteCommandAsync(string commandLine)
 {
@@ -77,10 +77,10 @@ async Task<bool> ExecuteCommandAsync(string commandLine)
 
     try
     {
-        var context = await KingShell.UserFacingConsole.PostJobAsync(commandLine, commandCancellation.Token);
+        var context = await FastPipe.UserFacingConsole.PostJobAsync(commandLine, commandCancellation.Token);
         try
         {
-            KingShell.ConsoleRenderer.Render(context.Output);
+            FastPipe.ConsoleRenderer.Render(context.Output);
         }
         finally
         {
@@ -95,7 +95,7 @@ async Task<bool> ExecuteCommandAsync(string commandLine)
             }
             catch (IOException exception)
             {
-                KingShell.ConsoleRenderer.WriteError($"Unable to clear the console: {exception.Message}");
+                FastPipe.ConsoleRenderer.WriteError($"Unable to clear the console: {exception.Message}");
             }
         }
 
@@ -106,12 +106,12 @@ async Task<bool> ExecuteCommandAsync(string commandLine)
     }
     catch (OperationCanceledException) when (commandCancellation.IsCancellationRequested)
     {
-        KingShell.ConsoleRenderer.WriteNotice("Command cancelled.");
+        FastPipe.ConsoleRenderer.WriteWarning("Command cancelled.");
         return false;
     }
     catch (Exception exception)
     {
-        KingShell.ConsoleRenderer.WriteError(exception.Message);
+        FastPipe.ConsoleRenderer.WriteError(exception.Message);
         return false;
     }
     finally

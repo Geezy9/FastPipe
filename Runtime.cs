@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using KingShell.Models;
+using FastPipe.Models;
 using System.Collections.Concurrent;
-using KingShell.utils;
+using FastPipe.utils;
 
-namespace KingShell;
+namespace FastPipe;
 
 internal static class Runtime
 {

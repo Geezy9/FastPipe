@@ -2,11 +2,11 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
-using KingShell.Extensions;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Extensions;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 
-namespace KingShell.Extensions.Collections;
+namespace FastPipe.Extensions.Collections;
 
 internal static class CollectionCommands
 {
@@ -14,9 +14,20 @@ internal static class CollectionCommands
     {
         dispatcher.Register(new WhereCommand());
         dispatcher.Register(new SelectCommand());
+        dispatcher.Register(new MapCommand());
         dispatcher.Register(new TakeCommand());
         dispatcher.Register(new SortCommand());
         dispatcher.Register(new GroupByCommand());
+        dispatcher.Register(new UniqCommand());
+        dispatcher.Register(new SplitCommand());
+        dispatcher.Register(new FlattenCommand());
+        dispatcher.Register(new ContainsCommand());
+        dispatcher.Register(new ReplaceCommand());
+        dispatcher.Register(new MinCommand());
+        dispatcher.Register(new MaxCommand());
+        dispatcher.Register(new SumCommand());
+        dispatcher.Register(new CountCommand());
+        dispatcher.Register(new GetPropertiesCommand());
     }
 }
 
@@ -71,6 +82,373 @@ internal sealed class SelectCommand : IShellCmd
         }
 
         return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class MapCommand : IShellCmd
+{
+    public string Name => "map";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Projects a public member from each piped value.";
+    public string Usage => "map <member> <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length < 2)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var memberName = CommandArguments.GetText(arguments[0], "member");
+        foreach (var argument in arguments.AsSpan(1))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (CollectionMemberAccess.TryGetMemberValue(argument.UntypedValue, memberName, out var value))
+                context.Write(value);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class UniqCommand : IShellCmd
+{
+    public string Name => "uniq";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Writes distinct piped values.";
+    public string Usage => "uniq [--by <member>] <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        var options = CollectionCommandArguments.ParseBy(arguments, Usage);
+        if (options.InputStartIndex >= arguments.Length)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var seen = new List<object?>();
+        for (var index = options.InputStartIndex; index < arguments.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var argument = arguments[index];
+            var key = argument.UntypedValue;
+            if (options.MemberName is not null && !CollectionMemberAccess.TryGetMemberValue(key, options.MemberName, out key))
+                continue;
+
+            if (seen.Any(existing => CollectionComparers.AreEqual(existing, key)))
+                continue;
+
+            seen.Add(key);
+            context.Write(argument);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class SplitCommand : IShellCmd
+{
+    public string Name => "split";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Splits string values using a delimiter.";
+    public string Usage => "split <delimiter> <text...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length < 2)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var delimiter = CommandArguments.GetText(arguments[0], "delimiter");
+        if (delimiter.Length == 0)
+            throw new ArgumentException("delimiter must not be empty.");
+
+        foreach (var argument in arguments.AsSpan(1))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var text = CommandArguments.GetText(argument, "text");
+            foreach (var part in text.Split([delimiter], StringSplitOptions.None))
+                context.Write(part);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class FlattenCommand : IShellCmd
+{
+    public string Name => "flatten";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Flattens one level of sequence values.";
+    public string Usage => "flatten <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length == 0)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        foreach (var argument in arguments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!StructuredDataAccess.TryEnumerateSequence(argument.UntypedValue, out var sequence))
+            {
+                context.Write(argument);
+                continue;
+            }
+
+            foreach (var item in sequence)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                context.Write(item);
+            }
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class ContainsCommand : IShellCmd
+{
+    public string Name => "contains";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Tests whether piped values contain a target value.";
+    public string Usage => "contains <value> <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length < 2)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var expected = arguments[0].UntypedValue;
+        var found = false;
+        for (var index = 1; index < arguments.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!CollectionComparers.AreEqual(arguments[index].UntypedValue, expected))
+                continue;
+
+            found = true;
+            break;
+        }
+
+        context.Write(found);
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class ReplaceCommand : IShellCmd
+{
+    public string Name => "replace";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Replaces text in each string value.";
+    public string Usage => "replace <old> <new> <text...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length < 3)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var oldValue = CommandArguments.GetText(arguments[0], "old");
+        var newValue = CommandArguments.GetText(arguments[1], "new");
+        foreach (var argument in arguments.AsSpan(2))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var text = CommandArguments.GetText(argument, "text");
+            context.Write(text.Replace(oldValue, newValue, StringComparison.Ordinal));
+        }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal abstract class AggregateCommandBase : IShellCmd
+{
+    public abstract string Name { get; }
+    public IReadOnlyList<string> Aliases => [];
+    public abstract string Description { get; }
+    public virtual string Usage => $"{Name} [--by <member>] <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        var options = CollectionCommandArguments.ParseBy(arguments, Usage);
+        if (options.InputStartIndex >= arguments.Length)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var hasValue = false;
+        object? selectedValue = null;
+        BaseObj? selectedItem = null;
+
+        for (var index = options.InputStartIndex; index < arguments.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var argument = arguments[index];
+            var value = argument.UntypedValue;
+            if (options.MemberName is not null && !CollectionMemberAccess.TryGetMemberValue(value, options.MemberName, out value))
+                continue;
+
+            if (!hasValue)
+            {
+                hasValue = true;
+                selectedValue = value;
+                selectedItem = argument;
+                continue;
+            }
+
+            if (ShouldReplace(value, selectedValue!))
+            {
+                selectedValue = value;
+                selectedItem = argument;
+            }
+        }
+
+        if (!hasValue)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        context.Write(options.MemberName is null ? selectedValue : selectedItem!);
+        return ValueTask.CompletedTask;
+    }
+
+    protected abstract bool ShouldReplace(object? candidate, object? current);
+}
+
+internal sealed class MinCommand : AggregateCommandBase
+{
+    public override string Name => "min";
+    public override string Description => "Returns the minimum value or item by member.";
+
+    protected override bool ShouldReplace(object? candidate, object? current) =>
+        CollectionComparers.Compare(candidate, current) < 0;
+}
+
+internal sealed class MaxCommand : AggregateCommandBase
+{
+    public override string Name => "max";
+    public override string Description => "Returns the maximum value or item by member.";
+
+    protected override bool ShouldReplace(object? candidate, object? current) =>
+        CollectionComparers.Compare(candidate, current) > 0;
+}
+
+internal sealed class SumCommand : IShellCmd
+{
+    public string Name => "sum";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Sums numeric values.";
+    public string Usage => "sum <number> <number...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length == 0)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        decimal total = 0;
+        foreach (var argument in arguments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!CollectionComparers.TryConvertValue(argument.UntypedValue, typeof(decimal), out var converted) || converted is not decimal number)
+                throw new ArgumentException("number must be numeric.");
+
+            total += number;
+        }
+
+        context.Write(total);
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class CountCommand : IShellCmd
+{
+    public string Name => "count";
+    public IReadOnlyList<string> Aliases => [];
+    public string Description => "Counts piped values.";
+    public string Usage => "count <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length == 0)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        cancellationToken.ThrowIfCancellationRequested();
+        context.Write((long)arguments.Length);
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class GetPropertiesCommand : IShellCmd
+{
+    public string Name => "get-properties";
+    public IReadOnlyList<string> Aliases => ["props"];
+    public string Description => "Extracts object member keys, values, or key/value pairs.";
+    public string Usage => "get-properties <keys|values|pairs> <input...>";
+
+    public ValueTask ExecuteAsync(CommandContext context, BaseObj[] arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Length < 2)
+            throw new ArgumentException($"Usage: {Usage}");
+
+        var mode = GetMode(CommandArguments.GetText(arguments[0], "mode"));
+        foreach (var argument in arguments.AsSpan(1))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var member in StructuredDataAccess.EnumerateMembers(argument.UntypedValue))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                switch (mode)
+                {
+                    case PropertyProjectionMode.Keys:
+                        context.Write(member.Key);
+                        break;
+                    case PropertyProjectionMode.Values:
+                        context.Write(member.Value);
+                        break;
+                    case PropertyProjectionMode.Pairs:
+                        context.Write(new PropertyPair(member.Key, member.Value));
+                        break;
+                }
+            }
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    private static PropertyProjectionMode GetMode(string mode)
+    {
+        return mode.ToLowerInvariant() switch
+        {
+            "keys" => PropertyProjectionMode.Keys,
+            "values" => PropertyProjectionMode.Values,
+            "pairs" => PropertyProjectionMode.Pairs,
+            _ => throw new ArgumentException("mode must be one of keys, values, or pairs."),
+        };
+    }
+}
+
+internal enum PropertyProjectionMode
+{
+    Keys,
+    Values,
+    Pairs
+}
+
+internal sealed record PropertyPair(string Key, object? Value) : IStructuredValue
+{
+    public bool TryGetMemberValue(string memberName, out object? value)
+    {
+        switch (memberName)
+        {
+            case "Key":
+                value = Key;
+                return true;
+            case "Value":
+                value = Value;
+                return true;
+            default:
+                value = null;
+                return false;
+        }
+    }
+
+    public IEnumerable<KeyValuePair<string, object?>> EnumerateMembers()
+    {
+        yield return new KeyValuePair<string, object?>("Key", Key);
+        yield return new KeyValuePair<string, object?>("Value", Value);
     }
 }
 
@@ -242,7 +620,23 @@ internal static class CollectionCommandArguments
         return new SortOptions(memberName, descending, index);
     }
 
+    internal static ByOptions ParseBy(BaseObj[] arguments, string usage)
+    {
+        if (arguments.Length == 0)
+            return new ByOptions(null, 0);
+
+        var option = arguments[0].UntypedValue as string;
+        if (!string.Equals(option, "--by", StringComparison.OrdinalIgnoreCase))
+            return new ByOptions(null, 0);
+
+        if (arguments.Length < 2)
+            throw new ArgumentException($"Usage: {usage}");
+
+        return new ByOptions(CommandArguments.GetText(arguments[1], "member"), 2);
+    }
+
     internal readonly record struct SortOptions(string? MemberName, bool Descending, int InputStartIndex);
+    internal readonly record struct ByOptions(string? MemberName, int InputStartIndex);
 }
 
 internal static class CollectionFormatting

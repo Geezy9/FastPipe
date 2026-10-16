@@ -1,11 +1,11 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
-using KingShell.Extensions;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Extensions;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 
-namespace KingShell
+namespace FastPipe
 {
     internal static class UserFacingConsole
     {

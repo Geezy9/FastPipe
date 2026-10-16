@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,12 +11,16 @@
 
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />
-    <None Include="KingShell.Tests\KingShell.Tests.csproj" />
-    <Compile Remove="KingShell.Tests\**\*.cs" />
+    <None Include="FastPipe.Tests\FastPipe.Tests.csproj" />
+    <Compile Remove="FastPipe.Tests\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="KingShell.Tests\" />
   </ItemGroup>
 
 </Project>

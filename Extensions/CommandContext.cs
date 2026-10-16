@@ -1,6 +1,6 @@
-using KingShell.Models;
+using FastPipe.Models;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 public sealed class ShellSession
 {

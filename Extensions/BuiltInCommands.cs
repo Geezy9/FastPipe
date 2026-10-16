@@ -1,11 +1,12 @@
-using KingShell.Extensions.Collections;
-using KingShell.Extensions.Serializers;
-using KingShell.Interfaces;
-using KingShell.Models;
+using FastPipe.Extensions.Collections;
+using FastPipe.Extensions.Deserializers;
+using FastPipe.Extensions.Serializers;
+using FastPipe.Interfaces;
+using FastPipe.Models;
 using System.ComponentModel;
 using System.Diagnostics;
 
-namespace KingShell.Extensions;
+namespace FastPipe.Extensions;
 
 internal static class BuiltInCommands
 {
@@ -54,6 +55,7 @@ internal static class BuiltInCommands
         dispatcher.Register(new ConcatCommand());
         CollectionCommands.RegisterAll(dispatcher);
         SerializerCommands.RegisterAll(dispatcher);
+        DeserializerCommands.RegisterAll(dispatcher);
     }
 }
 
